@@ -1,4 +1,5 @@
 Summary:	Library providing the gamin File Alteration Monitor API
+Summary(pl):	Biblioteka dostarczaj±ca File Alternation Monitor Api gamina
 Name:		gamin
 Version:	0.0.2
 Release:	1
@@ -19,40 +20,54 @@ BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
 This C library provides an API and ABI compatible file alteration
-monitor mechanism compatible with gamin but not dependant on a system wide
-daemon.
+monitor mechanism compatible with gamin but not dependant on a system
+wide daemon.
+
+%description -l pl
+Ta biblioteka C dostarcza mechanizm monitorowania zmian plików
+kompatybilny na poziomie API i ABI z gaminem, ale niezale¿ny od
+ogólnosystemowego demona.
 
 %package libs
 Summary:	Libraries for gamin
-License:	LGPL
+Summary(pl):	Biblioteki dla gamina
 Group:		Libraries
-Obsoletes:	libfam0
 Provides:	fam-libs
+Obsoletes:	libfam0
 
 %description libs
 Libraries for gamin.
 
+%description libs -l pl
+Biblioteki dla gamina.
+
 %package devel
 Summary:	Includes to develop using gamin
-License:	LGPL
+Summary(pl):	Pliki nag³ówkowe do tworzenia programów z u¿yciem gamina
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	libstdc++-devel
-Obsoletes:	libfam0-devel
 Provides:	fam-devel
+Obsoletes:	libfam0-devel
 
 %description devel
 Includes to develop using gamin.
 
+%description devel -l pl
+Pliki nag³ówkowe do tworzenia programów z u¿yciem gamina.
+
 %package static
 Summary:	gamin static libraries
-License:	LGPL
+Summary(pl):	Statyczne biblioteki gamina
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
 Provides:	fam-static
 
 %description static
 gamin static libraries.
+
+%description static -l pl
+Statyczne biblioteki gamina.
 
 %prep
 %setup -q
