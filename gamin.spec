@@ -2,7 +2,7 @@ Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl):	Biblioteka dostarczaj±ca File Alternation Monitor Api gamina
 Name:		gamin
 Version:	0.0.9
-Release:	1
+Release:	2
 License:	LGPL
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
@@ -13,9 +13,7 @@ BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
 BuildRequires:	glib2-devel
 BuildRequires:	libtool
-PreReq:		rc-inetd
 Requires:	%{name}-libs = %{version}-%{release}
-Requires:	inetdaemon
 Requires:	portmap
 Provides:	fam
 Obsoletes:	fam
@@ -73,6 +71,20 @@ gamin static libraries.
 %description static -l pl
 Statyczne biblioteki gamina.
 
+%package inetd
+Summary:	inetd config for gamin
+Summary(pl):	Plik konfiguracyjny do u¿ycia gamin przez inetd
+Group:		Daemons
+PreReq:		%{name} = %{version}-%{release}
+PreReq:		rc-inetd
+Requires:	inetdaemon
+
+%description inetd
+inetd config for gamin.
+
+%description inetd -l pl
+Plik konfiguracyjny do u¿ycia gamin przez inetd.
+
 %prep
 %setup -q
 
@@ -97,26 +109,25 @@ cat %{SOURCE1} | sed -e 's@/usr/lib@%{_libdir}@' > \
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post
+%post	libs -p /sbin/ldconfig
+%postun	libs -p /sbin/ldconfig
+
+%post inetd
 if [ -f /var/lock/subsys/rc-inetd ]; then
 	/etc/rc.d/init.d/rc-inetd reload 1>&2
 else
 	echo "Type \"/etc/rc.d/init.d/rc-inetd start\" to start inet server" 1>&2
 fi
 
-%postun
+%postun inetd
 if [ -f /var/lock/subsys/rc-inetd ]; then
 	/etc/rc.d/init.d/rc-inetd reload
 fi
-
-%post	libs -p /sbin/ldconfig
-%postun	libs -p /sbin/ldconfig
 
 %files
 %defattr(644,root,root,755)
 %doc AUTHORS ChangeLog README TODO
 %attr(755,root,root) %{_libdir}/gam_server
-%attr(640,root,root) /etc/sysconfig/rc-inetd/gamin
 
 %files libs
 %defattr(644,root,root,755)
@@ -132,3 +143,7 @@ fi
 %files static
 %defattr(644,root,root,755)
 %{_libdir}/*.a
+
+%files inetd
+%defattr(644,root,root,755)
+%attr(640,root,root) /etc/sysconfig/rc-inetd/gamin
