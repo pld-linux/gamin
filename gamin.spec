@@ -8,6 +8,7 @@ Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	6bc883ce97a47b44b57ffa955e7efd32
 Source1:	%{name}.inetd
+URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
 BuildRequires:	glib2-devel
