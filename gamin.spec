@@ -48,7 +48,7 @@ Summary:	Includes to develop using gamin
 Summary(pl):	Pliki nag³ówkowe do tworzenia programów z u¿yciem gamina
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
-Requires:	glib-devel
+Requires:	glib2-devel
 Provides:	fam-devel
 Obsoletes:	fam-devel
 
