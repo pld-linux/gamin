@@ -7,7 +7,6 @@ License:	LGPL
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	3d716b6533466f9ca69df13c58009981
-Source1:	%{name}.inetd
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
@@ -16,9 +15,9 @@ BuildRequires:	libtool
 BuildRequires:	pkgconfig
 BuildRequires:	python-devel
 Requires:	%{name}-libs = %{version}-%{release}
-Requires:	portmap
 Provides:	fam
 Obsoletes:	fam
+Obsoletes:	gamin-inetd
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -73,20 +72,6 @@ gamin static libraries.
 %description static -l pl
 Statyczne biblioteki gamina.
 
-%package inetd
-Summary:	inetd config for gamin
-Summary(pl):	Plik konfiguracyjny do u¿ycia gamin przez inetd
-Group:		Daemons
-PreReq:		%{name} = %{version}-%{release}
-PreReq:		rc-inetd
-Requires:	inetdaemon
-
-%description inetd
-inetd config for gamin.
-
-%description inetd -l pl
-Plik konfiguracyjny do u¿ycia gamin przez inetd.
-
 %package -n python-gamin
 Summary:	Python modules for gamin
 Summary(pl):	Modu³y jêzyka Python dla gamina
@@ -107,6 +92,7 @@ Modu³y jêzyka Python dla gamina.
 %{__libtoolize}
 %{__aclocal}
 %{__autoconf}
+%{__autoheader}
 %{__automake}
 %configure
 %{__make}
@@ -118,9 +104,6 @@ install -d $RPM_BUILD_ROOT/etc/sysconfig/rc-inetd
 %{__make} install \
 	DESTDIR=$RPM_BUILD_ROOT
 
-cat %{SOURCE1} | sed -e 's@/usr/lib@%{_libdir}@' > \
-	$RPM_BUILD_ROOT/etc/sysconfig/rc-inetd/gamin
-
 %py_ocomp $RPM_BUILD_ROOT%{py_sitedir}
 %py_comp $RPM_BUILD_ROOT%{py_sitedir}
 
@@ -131,18 +114,6 @@ rm -rf $RPM_BUILD_ROOT
 
 %post	libs -p /sbin/ldconfig
 %postun	libs -p /sbin/ldconfig
-
-%post inetd
-if [ -f /var/lock/subsys/rc-inetd ]; then
-	/etc/rc.d/init.d/rc-inetd reload 1>&2
-else
-	echo "Type \"/etc/rc.d/init.d/rc-inetd start\" to start inet server" 1>&2
-fi
-
-%postun inetd
-if [ -f /var/lock/subsys/rc-inetd ]; then
-	/etc/rc.d/init.d/rc-inetd reload
-fi
 
 %files
 %defattr(644,root,root,755)
@@ -162,11 +133,7 @@ fi
 
 %files static
 %defattr(644,root,root,755)
-%{_libdir}/*.a
-
-%files inetd
-%defattr(644,root,root,755)
-%attr(640,root,root) /etc/sysconfig/rc-inetd/gamin
+%{_libdir}/lib*.a
 
 %files -n python-gamin
 %defattr(644,root,root,755)
