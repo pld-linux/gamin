@@ -1,12 +1,12 @@
 Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl):	Biblioteka dostarczaj±ca File Alternation Monitor Api gamina
 Name:		gamin
-Version:	0.0.2
+Version:	0.0.6
 Release:	1
 License:	LGPL
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
-# Source0-md5:	17fda5a2e288b93944fd814254bad4c3
+# Source0-md5:	8f8841ed896cd11a96ad2089ab7326b8
 Source1:	%{name}.inetd
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
@@ -113,7 +113,7 @@ fi
 %files
 %defattr(644,root,root,755)
 %doc AUTHORS ChangeLog README TODO
-%attr(755,root,root) %{_bindir}/*
+%attr(755,root,root) %{_libdir}/gam_server
 %attr(640,root,root) /etc/sysconfig/rc-inetd/gamin
 
 %files libs
