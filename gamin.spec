@@ -13,6 +13,7 @@ BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
 BuildRequires:	glib2-devel
 BuildRequires:	libtool
+BuildRequires:  pkgconfig
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	portmap
 Provides:	fam
