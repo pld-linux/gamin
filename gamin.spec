@@ -1,12 +1,12 @@
 Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl):	Biblioteka dostarczaj±ca File Alternation Monitor Api gamina
 Name:		gamin
-Version:	0.0.20
+Version:	0.0.24
 Release:	1
 License:	LGPL
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
-# Source0-md5:	6fef61914cca3b6cdd6cce3e391024bb
+# Source0-md5:	fef7dd9504f5d4aae34c55c13d3d621f
 Source1:	%{name}.inetd
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
@@ -14,6 +14,7 @@ BuildRequires:	automake
 BuildRequires:	glib2-devel
 BuildRequires:	libtool
 BuildRequires:	pkgconfig
+BuildRequires:	python-devel
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	portmap
 Provides:	fam
@@ -86,6 +87,19 @@ inetd config for gamin.
 %description inetd -l pl
 Plik konfiguracyjny do u¿ycia gamin przez inetd.
 
+%package -n python-gamin
+Summary:	Python modules for gamin
+Summary(pl):	Modu³y jêzyka Python dla gamina
+Group:		Libraries/Python
+Requires:	%{name} = %{version}-%{release}
+%pyrequires_eq	python-libs
+
+%description -n python-gamin
+Python modules for gamin.
+
+%description -n python-gamin -l pl
+Modu³y jêzyka Python dla gamina.
+
 %prep
 %setup -q
 
@@ -106,6 +120,11 @@ install -d $RPM_BUILD_ROOT/etc/sysconfig/rc-inetd
 
 cat %{SOURCE1} | sed -e 's@/usr/lib@%{_libdir}@' > \
 	$RPM_BUILD_ROOT/etc/sysconfig/rc-inetd/gamin
+
+%py_ocomp $RPM_BUILD_ROOT%{py_sitedir}
+%py_comp $RPM_BUILD_ROOT%{py_sitedir}
+
+rm -f $RPM_BUILD_ROOT%{py_sitedir}/*.{py,la,a}
 
 %clean
 rm -rf $RPM_BUILD_ROOT
@@ -148,3 +167,8 @@ fi
 %files inetd
 %defattr(644,root,root,755)
 %attr(640,root,root) /etc/sysconfig/rc-inetd/gamin
+
+%files -n python-gamin
+%defattr(644,root,root,755)
+%attr(755,root,root) %{py_sitedir}/*.so
+%{py_sitedir}/*.py[co]
