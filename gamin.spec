@@ -8,14 +8,16 @@ Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	17fda5a2e288b93944fd814254bad4c3
 Source1:	%{name}.inetd
-BuildRequires:	autoconf
+BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
+BuildRequires:	glib2-devel
 BuildRequires:	libtool
 PreReq:		rc-inetd
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	inetdaemon
 Requires:	portmap
 Provides:	fam
+Obsoletes:	fam
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -33,7 +35,7 @@ Summary:	Libraries for gamin
 Summary(pl):	Biblioteki dla gamina
 Group:		Libraries
 Provides:	fam-libs
-Obsoletes:	libfam0
+Obsoletes:	fam-libs
 
 %description libs
 Libraries for gamin.
@@ -46,9 +48,9 @@ Summary:	Includes to develop using gamin
 Summary(pl):	Pliki nag³ówkowe do tworzenia programów z u¿yciem gamina
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
-Requires:	libstdc++-devel
+Requires:	glib-devel
 Provides:	fam-devel
-Obsoletes:	libfam0-devel
+Obsoletes:	fam-devel
 
 %description devel
 Includes to develop using gamin.
@@ -62,6 +64,7 @@ Summary(pl):	Statyczne biblioteki gamina
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
 Provides:	fam-static
+Obsoletes:	fam-static
 
 %description static
 gamin static libraries.
@@ -111,7 +114,6 @@ fi
 %defattr(644,root,root,755)
 %doc AUTHORS ChangeLog README TODO
 %attr(755,root,root) %{_bindir}/*
-%config %{_sysconfdir}/%{name}.conf
 %attr(640,root,root) /etc/sysconfig/rc-inetd/gamin
 
 %files libs
