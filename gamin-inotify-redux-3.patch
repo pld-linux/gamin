@@ -1,0 +1,964 @@
+Index: server/gam_debugging.h
+===================================================================
+RCS file: /cvs/gnome/gamin/server/gam_debugging.h,v
+retrieving revision 1.2
+diff -u -r1.2 gam_debugging.h
+--- server/gam_debugging.h	23 Mar 2005 09:50:11 -0000	1.2
++++ server/gam_debugging.h	14 Apr 2005 16:44:34 -0000
+@@ -12,7 +12,12 @@
+     GAMDnotifyDelete=2,
+     GAMDnotifyChange=3,
+     GAMDnotifyFlowOn=4,
+-    GAMDnotifyFlowOff=5
++    GAMDnotifyFlowOff=5,
++    GAMinotifyCreate=6,
++    GAMinotifyDelete=7,
++    GAMinotifyChange=8,
++    GAMinotifyFlowOn=9,
++    GAMinotifyFlowOff=10
+ } GAMDebugEvent;
+ 
+ void gam_debug_add(GamConnDataPtr conn, const char *value, int options);
+Index: server/gam_inotify.c
+===================================================================
+RCS file: /cvs/gnome/gamin/server/gam_inotify.c,v
+retrieving revision 1.17
+diff -u -r1.17 gam_inotify.c
+--- server/gam_inotify.c	7 Apr 2005 09:11:17 -0000	1.17
++++ server/gam_inotify.c	14 Apr 2005 16:44:34 -0000
+@@ -1,5 +1,8 @@
+-/*
+- * Copyright (C) 2004 John McCutchan, James Willcox, Corey Bowers
++/* gamin inotify backend
++ * Copyright (C) 2005 John McCutchan
++ *
++ * Based off of code,
++ * Copyright (C) 2003 James Willcox, Corey Bowers
+  *
+  * This library is free software; you can redistribute it and/or
+  * modify it under the terms of the GNU Lesser General Public
+@@ -14,261 +17,404 @@
+  * You should have received a copy of the GNU Lesser General Public
+  * License along with this library; if not, write to the Free
+  * Software Foundation, Inc., 675 Mass Ave, Cambridge, MA 02139, USA.
+- * TODO:
+- * 	- *properly* Handle removal of subscriptions when we get IGNORE event
+- * 	- this backend does not produce the same events as the dnotify/poll backend.
+- * 	for example, the dp backend allows for watching non-exist files/folders, 
+- * 	and be notified when they are created. there are more places where
+- * 	the events are not consistent.
+  */
+ 
+ 
+ #include <config.h>
+ #define _GNU_SOURCE
+ #include <fcntl.h>
+-#include <sys/ioctl.h>
+ #include <signal.h>
+ #include <unistd.h>
++#include <sys/ioctl.h>
+ #include <stdio.h>
+-#include <string.h>
+ #include <glib.h>
++#include "gam_error.h"
++#include "gam_poll.h"
+ #ifdef HAVE_LINUX_INOTIFY_H
+ #include <linux/inotify.h>
+ #else
+ #include "local_inotify.h"
+ #endif
+-#include "gam_error.h"
+ #include "gam_inotify.h"
+ #include "gam_tree.h"
+ #include "gam_event.h"
+ #include "gam_server.h"
+ #include "gam_event.h"
++#ifdef GAMIN_DEBUG_API
++#include "gam_debugging.h"
++#endif
++
++#define MIN_POLL_TIME 1.0
+ 
+ typedef struct {
+     char *path;
+-    char *path_file;
+     int wd;
+     int refcount;
+     GList *subs;
+-} INotifyData;
++    int busy;
++
++    gboolean dirty;
++    GTimer *poll_timer;
++} inotify_data_t;
+ 
+ static GHashTable *path_hash = NULL;
+ static GHashTable *wd_hash = NULL;
+-
+-static GList *new_subs = NULL;
+-
+-G_LOCK_DEFINE_STATIC(new_subs);
+-static GList *removed_subs = NULL;
+-
+-G_LOCK_DEFINE_STATIC(removed_subs);
++static GList *dirty_list = NULL;
+ 
+ G_LOCK_DEFINE_STATIC(inotify);
++
+ static GIOChannel *inotify_read_ioc = NULL;
+ 
+ static gboolean have_consume_idler = FALSE;
+ 
+-int fd = -1;                    // the device fd
++static int inotify_device_fd = -1;
++
++static guint should_poll_mask = IN_MODIFY|IN_ATTRIB|IN_CLOSE_WRITE|IN_MOVED_FROM|IN_MOVED_TO|IN_DELETE_SUBDIR|IN_DELETE_FILE|IN_CREATE_SUBDIR|IN_CREATE_FILE|IN_DELETE_SELF|IN_UNMOUNT;
++
++static void print_mask(int mask)
++{
++    if (mask & IN_ACCESS)
++    {
++        GAM_DEBUG(DEBUG_INFO, "ACCESS\n");
++    }
++    if (mask & IN_MODIFY)
++    {
++        GAM_DEBUG(DEBUG_INFO, "MODIFY\n");
++    }
++    if (mask & IN_ATTRIB)
++    {
++        GAM_DEBUG(DEBUG_INFO, "ATTRIB\n");
++    }
++    if (mask & IN_CLOSE_WRITE)
++    {
++        GAM_DEBUG(DEBUG_INFO, "CLOSE_WRITE\n");
++    }
++    if (mask & IN_CLOSE_NOWRITE)
++    {
++        GAM_DEBUG(DEBUG_INFO, "CLOSE_WRITE\n");
++    }
++    if (mask & IN_OPEN)
++    {
++        GAM_DEBUG(DEBUG_INFO, "OPEN\n");
++    }
++    if (mask & IN_MOVED_FROM)
++    {
++        GAM_DEBUG(DEBUG_INFO, "MOVE_FROM\n");
++    }
++    if (mask & IN_MOVED_TO)
++    {
++        GAM_DEBUG(DEBUG_INFO, "MOVE_TO\n");
++    }
++    if (mask & IN_DELETE_SUBDIR)
++    {
++        GAM_DEBUG(DEBUG_INFO, "DELETE_SUBDIR\n");
++    }
++    if (mask & IN_DELETE_FILE)
++    {
++        GAM_DEBUG(DEBUG_INFO, "DELETE_FILE\n");
++    }
++    if (mask & IN_CREATE_SUBDIR)
++    {
++        GAM_DEBUG(DEBUG_INFO, "CREATE_SUBDIR\n");
++    }
++    if (mask & IN_CREATE_FILE)
++    {
++        GAM_DEBUG(DEBUG_INFO, "CREATE_FILE\n");
++    }
++    if (mask & IN_DELETE_SELF)
++    {
++        GAM_DEBUG(DEBUG_INFO, "DELETE_SELF\n");
++    }
++    if (mask & IN_UNMOUNT)
++    {
++        GAM_DEBUG(DEBUG_INFO, "UNMOUNT\n");
++    }
++    if (mask & IN_Q_OVERFLOW)
++    {
++        GAM_DEBUG(DEBUG_INFO, "Q_OVERFLOW\n");
++    }
++    if (mask & IN_IGNORED)
++    {
++        GAM_DEBUG(DEBUG_INFO, "IGNORED\n");
++    }
++}
+ 
+-static INotifyData *
+-gam_inotify_data_new(const char *path, char *path_file, int wd)
++static inotify_data_t *
++gam_inotify_data_new(const char *path, int wd)
+ {
+-    INotifyData *data;
++    inotify_data_t *data;
+ 
+-    data = g_new0(INotifyData, 1);
++    data = g_new0(inotify_data_t, 1);
+     data->path = g_strdup(path);
+-    data->path_file = path_file;
+     data->wd = wd;
++    data->busy = 0;
+     data->refcount = 1;
+-    data->subs = NULL;
++    data->dirty = FALSE;
++    data->poll_timer = g_timer_new ();
+ 
+     return data;
+ }
+ 
+ static void
+-gam_inotify_data_free(INotifyData * data)
++gam_inotify_data_free(inotify_data_t * data)
+ {
++    if (data->refcount != 0)
++	GAM_DEBUG(DEBUG_INFO, "gam_inotify_data_free called with reffed data.\n");
+     g_free(data->path);
+-    g_free(data->path_file);
++    g_timer_destroy (data->poll_timer);
+     g_free(data);
+ }
+ 
+ static void
+-gam_inotify_add_rm_handler(const char *path, GamSubscription * sub,
+-                           pollHandlerMode mode)
++gam_inotify_directory_handler_internal(const char *path, pollHandlerMode mode)
+ {
+-    INotifyData *data;
++    inotify_data_t *data;
++    int path_fd;
++    int path_wd;
+     struct inotify_watch_request iwr;
+-    struct stat st;
+-    char *path_file;
+-    char *path_t;
+-    int wd, r;
+ 
++
++    switch (mode) {
++        case GAMIN_ACTIVATE:
++	    GAM_DEBUG(DEBUG_INFO, "Adding %s to inotify\n", path);
++	    break;
++        case GAMIN_DESACTIVATE:
++	    GAM_DEBUG(DEBUG_INFO, "Removing %s from inotify\n", path);
++	    break;
++	case GAMIN_FLOWCONTROLSTART:
++	    GAM_DEBUG(DEBUG_INFO, "Start flow control for %s\n", path);
++	    break;
++	case GAMIN_FLOWCONTROLSTOP:
++	    GAM_DEBUG(DEBUG_INFO, "Stop flow control for %s\n", path);
++	    break;
++	default:
++	    gam_error(DEBUG_INFO, "Unknown inotify operation %d for %s\n",
++	              mode, path);
++	    return;
++    }
+     G_LOCK(inotify);
+ 
+     if (mode == GAMIN_ACTIVATE) {
+-        GList *subs;
+-
+-        subs = NULL;
+-        subs = g_list_append(subs, sub);
+-
+         if ((data = g_hash_table_lookup(path_hash, path)) != NULL) {
+             data->refcount++;
+-            data->subs = g_list_prepend(data->subs, sub);
++	    GAM_DEBUG(DEBUG_INFO, "  found incremented refcount: %d\n",
++	              data->refcount);
+             G_UNLOCK(inotify);
++#ifdef GAMIN_DEBUG_API
++            gam_debug_report(GAMinotifyChange, path, data->refcount);
++#endif
+             GAM_DEBUG(DEBUG_INFO, "inotify updated refcount\n");
+-            /*
+-             * hum might need some work to check if the path is a dir,
+-             * setting 0 and forcing to bypass checks right now.
+-             */
+-            gam_server_emit_event(path, 0, GAMIN_EVENT_EXISTS, subs, 1);
+-            gam_server_emit_event(path, 0, GAMIN_EVENT_ENDEXISTS, subs, 1);
+             return;
+         }
+ 
+-        {
+-            if (stat(path, &st)) {
+-                G_UNLOCK(inotify);
+-                return;
+-            }
+-
+-            path_t = g_strdup(path);
+-            path_file = NULL;
+-
+-            if (S_ISREG(st.st_mode)) {
+-                char *ch;
+-
+-                ch = strrchr(path_t, '/');
+-                if (!ch) {
+-                    g_free(path_t);
+-                    G_UNLOCK(inotify);
+-                    return;
+-                }
+-                path_file = g_strdup(++ch);
+-                *ch = '\0';
+-            }
+-
+-
+-            int file_fd = open(path_t, O_RDONLY);
++        path_fd = open(path, O_RDONLY);
+ 
+-            g_free(path_t);
+-            if (file_fd < 0) {
+-                G_UNLOCK(inotify);
+-                return;
+-            }
+-
+-            iwr.fd = file_fd;
+-            iwr.mask = 0xffffffff;      // all events
+-            wd = ioctl(fd, INOTIFY_WATCH, &iwr);
+-            close(file_fd);
+-        }
+-
+-        if (wd < 0) {
++        if (path_fd < 0) {
+             G_UNLOCK(inotify);
+             return;
+         }
+ 
+-        data = gam_inotify_data_new(path, path_file, wd);
+-        path_file = NULL;
+-        data->subs = g_list_prepend(data->subs, sub);
++	iwr.fd = path_fd;
++	iwr.mask = should_poll_mask;
++	path_wd = ioctl (inotify_device_fd, INOTIFY_WATCH, &iwr);
++	close (path_fd);
++
++        data = gam_inotify_data_new(path, path_wd);
+         g_hash_table_insert(wd_hash, GINT_TO_POINTER(data->wd), data);
+         g_hash_table_insert(path_hash, data->path, data);
+ 
+-        GAM_DEBUG(DEBUG_INFO, "added inotify watch for %s\n", path);
+-
+-        gam_server_emit_event(path, 0, GAMIN_EVENT_EXISTS, subs, 1);
+-        gam_server_emit_event(path, 0, GAMIN_EVENT_ENDEXISTS, subs, 1);
++        GAM_DEBUG(DEBUG_INFO, "activated inotify for %s\n", path);
++#ifdef GAMIN_DEBUG_API
++        gam_debug_report(GAMinotifyCreate, path, 0);
++#endif
+     } else if (mode == GAMIN_DESACTIVATE) {
+-        data = g_hash_table_lookup(path_hash, path);
++	char *dir = (char *) path;
+ 
+-        if (!data) {
+-            G_UNLOCK(inotify);
+-            return;
+-        }
++	data = g_hash_table_lookup(path_hash, path);
++
++	if (!data) {
++	    dir = g_path_get_dirname(path);
++	    data = g_hash_table_lookup(path_hash, dir);
++
++	    if (!data) {
++		GAM_DEBUG(DEBUG_INFO, "  not found !!!\n");
++
++		if (dir != NULL)
++		    g_free(dir);
++
++		G_UNLOCK(inotify);
++		return;
++	    }
++	    GAM_DEBUG(DEBUG_INFO, "  not found using parent\n");
++	}
+ 
+-        if (g_list_find(data->subs, sub)) {
+-            data->subs = g_list_remove_all(data->subs, sub);
+-        }
+         data->refcount--;
+         GAM_DEBUG(DEBUG_INFO, "inotify decremeneted refcount for %s\n",
+                   path);
+ 
+         if (data->refcount == 0) {
+-            r = ioctl(fd, INOTIFY_IGNORE, &data->wd);
+-            if (r < 0) {
+-                GAM_DEBUG(DEBUG_INFO,
+-                          "INOTIFY_IGNORE failed for %s (wd = %d)\n",
+-                          data->path, data->wd);
++	    int wd = data->wd;
++
++	    GAM_DEBUG(DEBUG_INFO, "removed inotify watch for %s\n", data->path);
++
++	    g_hash_table_remove(path_hash, data->path);
++	    g_hash_table_remove(wd_hash, GINT_TO_POINTER(data->wd));
++	    gam_inotify_data_free(data);
++
++	    if (ioctl (inotify_device_fd, INOTIFY_IGNORE, &wd) < 0) {
++		GAM_DEBUG (DEBUG_INFO, "INOTIFY_IGNORE failed for %s (wd = %d)\n", data->path, data->wd);
++	    }
++#ifdef GAMIN_DEBUG_API
++	    gam_debug_report(GAMinotifyDelete, dir, 0);
++#endif
++        } else {
++	    GAM_DEBUG(DEBUG_INFO, "  found decremented refcount: %d\n",
++	              data->refcount);
++#ifdef GAMIN_DEBUG_API
++            gam_debug_report(GAMinotifyChange, dir, data->refcount);
++#endif
++	}
++	if ((dir != path) && (dir != NULL))
++	    g_free(dir);
++    } else if ((mode == GAMIN_FLOWCONTROLSTART) ||
++               (mode == GAMIN_FLOWCONTROLSTOP)) {
++        char *dir = (char *) path;
++
++        data = g_hash_table_lookup(path_hash, path);
++        if (!data) {
++            dir = g_path_get_dirname(path);
++            data = g_hash_table_lookup(path_hash, dir);
++
++            if (!data) {
++                GAM_DEBUG(DEBUG_INFO, "  not found !!!\n");
++
++                if (dir != NULL)
++                    g_free(dir);
++                G_UNLOCK(inotify);
++                return;
+             }
+-            GAM_DEBUG(DEBUG_INFO, "removed inotify watch for %s\n",
+-                      data->path);
+-            g_hash_table_remove(path_hash, data->path);
+-            g_hash_table_remove(wd_hash, GINT_TO_POINTER(data->wd));
+-            gam_inotify_data_free(data);
++            GAM_DEBUG(DEBUG_INFO, "  not found using parent\n");
+         }
++        if (data != NULL) {
++	    if (mode == GAMIN_FLOWCONTROLSTART) {
++		if (data->wd >= 0) {
++		    if (ioctl (inotify_device_fd, INOTIFY_IGNORE, &data->wd) < 0) {
++			GAM_DEBUG (DEBUG_INFO, "INOTIFY_IGNORE failed for %s (wd = %d)\n", data->path, data->wd);
++		    }
++		    g_hash_table_remove(wd_hash, GINT_TO_POINTER(data->wd));
++		    data->wd = -1;
++		    GAM_DEBUG(DEBUG_INFO, "deactivated inotify for %s\n",
++			      data->path);
++#ifdef GAMIN_DEBUG_API
++		    gam_debug_report(GAMinotifyFlowOn, dir, 0);
++#endif
++		}
++		data->busy++;
++	    } else {
++	        if (data->busy > 0) {
++		    data->busy--;
++		    if (data->busy == 0) {
++			path_fd = open(data->path, O_RDONLY);
++			if (path_fd < 0) {
++			    G_UNLOCK(inotify);
++			    GAM_DEBUG(DEBUG_INFO,
++			              "Failed to reactivate inotify for %s\n",
++				      data->path);
++
++                            if ((dir != path) && (dir != NULL))
++                                g_free(dir);
++                            return;
++			}
++
++			iwr.fd = path_fd;
++			iwr.mask = 0xffffffff;
++			path_wd = ioctl (inotify_device_fd, INOTIFY_WATCH, &iwr);
++			close (path_fd);
++
++			data->wd = path_wd;
++
++			g_hash_table_insert(wd_hash, GINT_TO_POINTER(data->wd),
++			                    data);
++			GAM_DEBUG(DEBUG_INFO, "Reactivated inotify for %s\n",
++			          data->path);
++#ifdef GAMIN_DEBUG_API
++			gam_debug_report(GAMinotifyFlowOff, path, 0);
++#endif
++		    }
++		}
++	    }
++	}
++        if ((dir != path) && (dir != NULL))
++            g_free(dir);
+     } else {
+-        GAM_DEBUG(DEBUG_INFO, "Inotify: unimplemented mode request %d\n",
+-                  mode);
++	GAM_DEBUG(DEBUG_INFO, "Unimplemented operation\n");
+     }
++
+     G_UNLOCK(inotify);
+ }
+ 
+-static GaminEventType
+-inotify_event_to_gamin_event(int mask)
++static void
++gam_inotify_directory_handler(const char *path, pollHandlerMode mode)
+ {
+-    switch (mask) {
+-        case IN_ATTRIB:
+-        case IN_MODIFY:
+-            return GAMIN_EVENT_CHANGED;
+-            break;
+-        case IN_MOVED_TO:
+-        case IN_CREATE_SUBDIR:
+-        case IN_CREATE_FILE:
+-            return GAMIN_EVENT_CREATED;
+-            break;
+-        case IN_MOVED_FROM:
+-        case IN_DELETE_SUBDIR:
+-        case IN_DELETE_FILE:
+-            return GAMIN_EVENT_DELETED;
+-            break;
+-        default:
+-            return GAMIN_EVENT_UNKNOWN;
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_directory_handler %s : %d\n",
++              path, mode);
++
++    if ((mode == GAMIN_DESACTIVATE) ||
++        (g_file_test(path, G_FILE_TEST_IS_DIR))) {
++	gam_inotify_directory_handler_internal(path, mode);
++    } else {
++	char *dir;
++
++	dir = g_path_get_dirname(path);
++	GAM_DEBUG(DEBUG_INFO, " not a dir using parent %s\n", dir);
++	gam_inotify_directory_handler_internal(dir, mode);
++	g_free(dir);
+     }
+ }
+ 
+ static void
+-gam_inotify_emit_event(INotifyData * data, struct inotify_event *event)
++gam_inotify_file_handler(const char *path, pollHandlerMode mode)
+ {
+-    GaminEventType gevent;
+-    char *event_path;
+-
+-    if (!data || !event)
+-        return;
+-    gevent = inotify_event_to_gamin_event(event->mask);
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_file_handler %s : %d\n", path, mode);
++    
++    if (g_file_test(path, G_FILE_TEST_IS_DIR)) {
++	gam_inotify_directory_handler_internal(path, mode);
++    } else {
++	char *dir;
+ 
+-    // gamins event vocabulary is very small compared to inotify
+-    // so we often will receieve events that have no equivelant 
+-    // in gamin
+-    if (gevent == GAMIN_EVENT_UNKNOWN) {
+-        return;
++	dir = g_path_get_dirname(path);
++	GAM_DEBUG(DEBUG_INFO, " not a dir using parent %s\n", dir);
++	gam_inotify_directory_handler_internal(dir, mode);
++	g_free(dir);
+     }
+-    if (event->name[0] != '\0' && !data->path_file) {
+-        int pathlen = strlen(data->path);
++}
+ 
+-        if (data->path[pathlen - 1] == '/') {
+-            event_path = g_strconcat(data->path, event->name, NULL);
+-        } else {
+-            event_path = g_strconcat(data->path, "/", event->name, NULL);
+-        }
+-    } else {
+-        event_path = g_strdup(data->path);
+-    }
++/* Must be called with inotify lock locked */
++static void
++gam_inotify_dirty_list_cleaner ()
++{
++    GList *l;
++
++    /* Here we walk the old dirty list and create a new one. 
++     * if we don't poll a node on the old list, we add it to the new one */
++
++    l = dirty_list;
++    dirty_list = NULL;
+ 
+-    GAM_DEBUG(DEBUG_INFO, "inotify emitting event %s for %s\n",
+-              gam_event_to_string(gevent), event_path);
++    for (l = l; l; l = l->next) {
++	inotify_data_t *data = l->data;
+ 
+-    gam_server_emit_event(event_path, 0, gevent, data->subs, 1);
++	g_assert (data->dirty);
++
++	if (g_timer_elapsed (data->poll_timer, NULL) >= MIN_POLL_TIME) {
++	    data->dirty = FALSE;
++	    gam_poll_scan_directory (data->path);
++	} else {
++	    dirty_list = g_list_append (dirty_list, data);
++	}
++    }
+ 
+-    g_free(event_path);
++    g_list_free (l);
+ }
+ 
+ static gboolean
+@@ -276,71 +422,76 @@
+ {
+     char *buffer;
+     int buffer_size;
++    int events;
+     gsize buffer_i, read_size;
+ 
+     G_LOCK(inotify);
+ 
+-    if (ioctl(fd, FIONREAD, &buffer_size) < 0) {
+-        G_UNLOCK(inotify);
+-        GAM_DEBUG(DEBUG_INFO, "inotify FIONREAD < 0. kaboom!\n");
+-        return FALSE;
++#if 0
++    gam_inotify_dirty_list_cleaner ();
++#endif
++
++    if (ioctl(inotify_device_fd, FIONREAD, &buffer_size) < 0) {
++	G_UNLOCK(inotify);
++	GAM_DEBUG(DEBUG_INFO, "inotify FIONREAD < 0. kaboom!\n");
++	return FALSE;
+     }
+ 
+     buffer = g_malloc(buffer_size);
+ 
+-    if (g_io_channel_read_chars
+-        (inotify_read_ioc, (char *) buffer, buffer_size, &read_size,
+-         NULL) != G_IO_STATUS_NORMAL) {
+-        G_UNLOCK(inotify);
+-        GAM_DEBUG(DEBUG_INFO,
+-                  "inotify failed to read events from inotify fd.\n");
+-        g_free(buffer);
+-        return FALSE;
++    if (g_io_channel_read_chars(inotify_read_ioc, (char *)buffer, buffer_size, &read_size, NULL) != G_IO_STATUS_NORMAL) {
++	G_UNLOCK(inotify);
++	GAM_DEBUG(DEBUG_INFO, "inotify failed to read events from inotify fd.\n");
++	g_free (buffer);
++	return FALSE;
+     }
+ 
+     buffer_i = 0;
++    events = 0;
+     while (buffer_i < read_size) {
+-        struct inotify_event *event;
+-        gsize event_size;
+-        INotifyData *data;
+-
+-        event = (struct inotify_event *) &buffer[buffer_i];
+-        event_size = sizeof(struct inotify_event) + event->len;
+-
+-        data = g_hash_table_lookup(wd_hash, GINT_TO_POINTER(event->wd));
+-        if (!data) {
+-            GAM_DEBUG(DEBUG_INFO, "inotify can't find wd %d\n", event->wd);
+-            GAM_DEBUG(DEBUG_INFO,
+-                      "weird things have happened to inotify.\n");
+-        } else {
+-            /* Do the shit with the event */
+-            if (event->mask == IN_IGNORED) {
+-                GList *l;
+-
+-                l = data->subs;
+-                data->subs = NULL;
+-                for (l = l; l; l = l->next) {
+-                    GamSubscription *sub = l->data;
+-
+-                    gam_inotify_remove_subscription(sub);
+-                }
+-            } else {
+-                if (data->path_file) {
+-                    if (event->name[0] != '\0') {
+-                        int pathlen = strlen(data->path_file);
+-
+-                        if (strcmp(data->path_file, event->name)) {
+-                            buffer_i += event_size;
+-                            continue;
+-                        }
+-                    }
+-                }
+-                gam_inotify_emit_event(data, event);
+-            }
+-        }
++	struct inotify_event *event;
++	gsize event_size;
++	inotify_data_t *data;
++
++	event = (struct inotify_event *)&buffer[buffer_i];
++	event_size = sizeof(struct inotify_event) + event->len;
++
++	data = g_hash_table_lookup (wd_hash, GINT_TO_POINTER(event->wd));
++	if (!data) {
++	    GAM_DEBUG(DEBUG_INFO, "inotify can't find wd %d\n", event->wd);
++	} else {
++	    if (event->mask == IN_IGNORED || event->mask == IN_UNMOUNT) {
++		GList *l;
++
++		l = data->subs;
++		data->subs = NULL;
++		for (l = l; l; l = l->next) {
++		    GamSubscription *sub = l->data;
++		    gam_inotify_remove_subscription (sub);
++		}
++	    } else if (event->mask != IN_Q_OVERFLOW) {
++		if (event->mask & should_poll_mask) {
++		    GAM_DEBUG(DEBUG_INFO, "inotify requesting poll for %s\n", data->path);
++		    GAM_DEBUG(DEBUG_INFO, "poll was requested for event = ");
++		    print_mask (event->mask);
++		    gam_poll_scan_directory (data->path);
++#if 0
++		    /* if node isn't dirty */
++		    if (!data->dirty) {
++			/* Put this node on the dirty list */
++			data->dirty = TRUE;
++			g_timer_start(data->poll_timer);
++			dirty_list = g_list_append (dirty_list, data);
++		    }
++#endif
++		}
++	    }
++	}
+ 
+         buffer_i += event_size;
++	events++;
+     }
++    GAM_DEBUG(DEBUG_INFO, "inotify recieved %d events\n", events);
+ 
+     g_free(buffer);
+     G_UNLOCK(inotify);
+@@ -348,48 +499,12 @@
+     return TRUE;
+ }
+ 
++
+ static gboolean
+ gam_inotify_consume_subscriptions_real(gpointer data)
+ {
+-    GList *subs, *l;
+-
+-    G_LOCK(new_subs);
+-    if (new_subs) {
+-        subs = new_subs;
+-        new_subs = NULL;
+-        G_UNLOCK(new_subs);
+-
+-        for (l = subs; l; l = l->next) {
+-            GamSubscription *sub = l->data;
+-
+-            GAM_DEBUG(DEBUG_INFO, "called gam_inotify_add_handler()\n");
+-            gam_inotify_add_rm_handler(gam_subscription_get_path(sub), sub,
+-                                       TRUE);
+-        }
+-
+-    } else {
+-        G_UNLOCK(new_subs);
+-    }
+-
+-    G_LOCK(removed_subs);
+-    if (removed_subs) {
+-        subs = removed_subs;
+-        removed_subs = NULL;
+-        G_UNLOCK(removed_subs);
+-
+-        for (l = subs; l; l = l->next) {
+-            GamSubscription *sub = l->data;
+-
+-            GAM_DEBUG(DEBUG_INFO, "called gam_inotify_rm_handler()\n");
+-            gam_inotify_add_rm_handler(gam_subscription_get_path(sub), sub,
+-                                       FALSE);
+-        }
+-    } else {
+-        G_UNLOCK(removed_subs);
+-    }
+-
+-    GAM_DEBUG(DEBUG_INFO, "gam_inotify_consume_subscriptions()\n");
+-
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_consume_subscriptions_real()\n");
++    gam_poll_consume_subscriptions();
+     have_consume_idler = FALSE;
+     return FALSE;
+ }
+@@ -402,30 +517,31 @@
+     if (have_consume_idler)
+         return;
+ 
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_consume_subscriptions()\n");
+     have_consume_idler = TRUE;
+-
+     source = g_idle_source_new();
+     g_source_set_callback(source, gam_inotify_consume_subscriptions_real,
+                           NULL, NULL);
+-
+     g_source_attach(source, NULL);
+ }
+ 
+ /**
+- * @defgroup inotify inotify backend
++ * @defgroup inotify inotify Backend
+  * @ingroup Backends
+  * @brief inotify backend API
+  *
+  * Since version 2.6.X, Linux kernels have included the Linux Inode
+  * Notification system (inotify).  This backend uses inotify to know when
+- * files are changed/created/deleted.  
++ * files are changed/created/deleted.  Since inotify can't watch files/dirs that
++ * don't exist we still have to cache stat() information. For this,
++ * we can just use the code in the polling backend.
+  *
+  * @{
+  */
+ 
+ 
+ /**
+- * Initializes the inotify system.  This must be called before
++ * Initializes the inotify backend.  This must be called before
+  * any other functions in this module.
+  *
+  * @returns TRUE if initialization succeeded, FALSE otherwise
+@@ -435,14 +551,16 @@
+ {
+     GSource *source;
+ 
+-    fd = open("/dev/inotify", O_RDONLY);
++    inotify_device_fd = open("/dev/inotify", O_RDONLY);
+ 
+-    if (fd < 0) {
+-        GAM_DEBUG(DEBUG_INFO, "Could not open /dev/inotify\n");
+-        return FALSE;
++    if (inotify_device_fd < 0) {
++		GAM_DEBUG(DEBUG_INFO, "Could not open /dev/inotify\n");
++		return FALSE;
+     }
+ 
+-    inotify_read_ioc = g_io_channel_unix_new(fd);
++    g_return_val_if_fail(gam_poll_init_full(FALSE), FALSE);
++
++	inotify_read_ioc = g_io_channel_unix_new(inotify_device_fd);
+ 
+     /* For binary data */
+     g_io_channel_set_encoding(inotify_read_ioc, NULL, NULL);
+@@ -450,13 +568,15 @@
+     g_io_channel_set_flags(inotify_read_ioc, G_IO_FLAG_NONBLOCK, NULL);
+ 
+     source = g_io_create_watch(inotify_read_ioc,
+-                               G_IO_IN | G_IO_HUP | G_IO_ERR);
++			       G_IO_IN | G_IO_HUP | G_IO_ERR);
+     g_source_set_callback(source, gam_inotify_read_handler, NULL, NULL);
+ 
+     g_source_attach(source, NULL);
+ 
+     path_hash = g_hash_table_new(g_str_hash, g_str_equal);
+     wd_hash = g_hash_table_new(g_direct_hash, g_direct_equal);
++    gam_poll_set_directory_handler(gam_inotify_directory_handler);
++    gam_poll_set_file_handler(gam_inotify_file_handler);
+ 
+     GAM_DEBUG(DEBUG_INFO, "inotify initialized\n");
+ 
+@@ -476,15 +596,14 @@
+ gboolean
+ gam_inotify_add_subscription(GamSubscription * sub)
+ {
+-    gam_listener_add_subscription(gam_subscription_get_listener(sub), sub);
+-
+-    G_LOCK(new_subs);
+-    new_subs = g_list_prepend(new_subs, sub);
+-    G_UNLOCK(new_subs);
+-
+-    GAM_DEBUG(DEBUG_INFO, "inotify_add_sub\n");
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_add_subscription\n");
++    if (!gam_poll_add_subscription(sub)) {
++        return FALSE;
++    }
+ 
+     gam_inotify_consume_subscriptions();
++
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_add_subscription: done\n");
+     return TRUE;
+ }
+ 
+@@ -497,26 +616,15 @@
+ gboolean
+ gam_inotify_remove_subscription(GamSubscription * sub)
+ {
+-    G_LOCK(new_subs);
+-    if (g_list_find(new_subs, sub)) {
+-        GAM_DEBUG(DEBUG_INFO, "removed sub found on new_subs\n");
+-        new_subs = g_list_remove_all(new_subs, sub);
+-        G_UNLOCK(new_subs);
+-        return TRUE;
+-    }
+-    G_UNLOCK(new_subs);
+-
+-    gam_subscription_cancel(sub);
+-    gam_listener_remove_subscription(gam_subscription_get_listener(sub),
+-                                     sub);
+-
+-    G_LOCK(removed_subs);
+-    removed_subs = g_list_prepend(removed_subs, sub);
+-    G_UNLOCK(removed_subs);
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_remove_subscription\n");
++
++    if (!gam_poll_remove_subscription(sub)) {
++        return FALSE;
++    }
+ 
+-    GAM_DEBUG(DEBUG_INFO, "inotify_remove_sub\n");
+     gam_inotify_consume_subscriptions();
+ 
++    GAM_DEBUG(DEBUG_INFO, "gam_inotify_remove_subscription: done\n");
+     return TRUE;
+ }
+ 
+@@ -529,26 +637,13 @@
+ gboolean
+ gam_inotify_remove_all_for(GamListener * listener)
+ {
+-    GList *subs, *l = NULL;
+-
+-    subs = gam_listener_get_subscriptions(listener);
+-
+-    for (l = subs; l; l = l->next) {
+-        GamSubscription *sub = l->data;
+-
+-        g_assert(sub != NULL);
+-
+-        gam_inotify_remove_subscription(sub);
+-
+-    }
+-
+-    if (subs) {
+-        g_list_free(subs);
+-        gam_inotify_consume_subscriptions();
+-        return TRUE;
+-    } else {
++    if (!gam_poll_remove_all_for(listener)) {
+         return FALSE;
+     }
++
++    gam_inotify_consume_subscriptions();
++
++    return TRUE;
+ }
+ 
+ /** @} */
+Index: server/gam_inotify.h
+===================================================================
+RCS file: /cvs/gnome/gamin/server/gam_inotify.h,v
+retrieving revision 1.1
+diff -u -r1.1 gam_inotify.h
+--- server/gam_inotify.h	27 Jul 2004 10:24:43 -0000	1.1
++++ server/gam_inotify.h	14 Apr 2005 16:44:34 -0000
+@@ -1,6 +1,5 @@
+-
+-#ifndef __MD_INOTIFY_H__
+-#define __MD_INOTIFY_H__
++#ifndef __GAM_INOTIFY_H__
++#define __GAM_INOTIFY_H__
+ 
+ #include <glib.h>
+ #include "gam_poll.h"
+@@ -15,4 +14,4 @@
+ 
+ G_END_DECLS
+ 
+-#endif /* __MD_INOTIFY_H__ */
++#endif /* __GAM_INOTIFY_H__ */
+
