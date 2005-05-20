@@ -1,15 +1,12 @@
-%define		_snap	20050414
 Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl):	Biblioteka dostarczaj±ca File Alternation Monitor Api gamina
 Name:		gamin
-Version:	0.0.26
-Release:	3.%{_snap}.0
+Version:	0.1.0
+Release:	1
 License:	LGPL
 Group:		Networking/Daemons
-#Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
-Source0:	%{name}-%{version}-%{_snap}.tar.bz2
-# Source0-md5:	6acf1e4a006825ee70ae451b308e89ca
-Patch0:		%{name}-inotify-redux-3.patch
+Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
+# Source0-md5:	282f34278af3367150e163136382d22d
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
@@ -90,7 +87,6 @@ Modu³y jêzyka Python dla gamina.
 
 %prep
 %setup -q
-%patch0 -p0
 
 %build
 %{__libtoolize}
