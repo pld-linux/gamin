@@ -13,6 +13,7 @@ BuildRequires:	automake
 BuildRequires:	glib2-devel
 BuildRequires:	libtool
 BuildRequires:	pkgconfig
+BuildRequires:	python
 BuildRequires:	python-devel
 Requires:	%{name}-libs = %{version}-%{release}
 Provides:	fam
