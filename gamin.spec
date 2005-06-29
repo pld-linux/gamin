@@ -2,7 +2,7 @@ Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl):	Biblioteka dostarczaj±ca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.1
-Release:	1
+Release:	2
 License:	LGPL
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
@@ -16,8 +16,6 @@ BuildRequires:	pkgconfig
 BuildRequires:	python
 BuildRequires:	python-devel
 Requires:	%{name}-libs = %{version}-%{release}
-Provides:	fam
-Obsoletes:	fam
 Obsoletes:	gamin-inetd
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
@@ -35,8 +33,6 @@ ogólnosystemowego demona.
 Summary:	Libraries for gamin
 Summary(pl):	Biblioteki dla gamina
 Group:		Libraries
-Provides:	fam-libs
-Obsoletes:	fam-libs
 
 %description libs
 Libraries for gamin.
@@ -50,8 +46,6 @@ Summary(pl):	Pliki nag³ówkowe do tworzenia programów z u¿yciem gamina
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	glib2-devel
-Provides:	fam-devel
-Obsoletes:	fam-devel
 
 %description devel
 Includes to develop using gamin.
@@ -64,8 +58,6 @@ Summary:	gamin static libraries
 Summary(pl):	Statyczne biblioteki gamina
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
-Provides:	fam-static
-Obsoletes:	fam-static
 
 %description static
 gamin static libraries.
