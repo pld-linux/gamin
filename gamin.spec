@@ -1,12 +1,12 @@
 Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl):	Biblioteka dostarczaj±ca File Alteration Monitor API gamina
 Name:		gamin
-Version:	0.1.5
+Version:	0.1.6
 Release:	1
 License:	LGPL
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
-# Source0-md5:	0fad3fce44466bbb5a5d0450b4700e05
+# Source0-md5:	9c306b964ca95044a19c273dffd24001
 Patch0:		%{name}-inotify.patch
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
