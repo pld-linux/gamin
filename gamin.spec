@@ -1,5 +1,5 @@
 Summary:	Library providing the gamin File Alteration Monitor API
-Summary(pl):	Biblioteka dostarczaj眂a File Alteration Monitor API gamina
+Summary(pl.UTF-8):   Biblioteka dostarczaj膮ca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.8
 Release:	2
@@ -26,26 +26,26 @@ This C library provides an API and ABI compatible file alteration
 monitor mechanism compatible with gamin but not dependant on a system
 wide daemon.
 
-%description -l pl
-Ta biblioteka C dostarcza mechanizm monitorowania zmian plik體
-kompatybilny na poziomie API i ABI z gaminem, ale niezale縩y od
-og髄nosystemowego demona.
+%description -l pl.UTF-8
+Ta biblioteka C dostarcza mechanizm monitorowania zmian plik贸w
+kompatybilny na poziomie API i ABI z gaminem, ale niezale偶ny od
+og贸lnosystemowego demona.
 
 %package libs
 Summary:	Libraries for gamin
-Summary(pl):	Biblioteki dla gamina
+Summary(pl.UTF-8):   Biblioteki dla gamina
 Group:		Libraries
 Provides:	fam-libs = %{name}-libs
 
 %description libs
 Libraries for gamin.
 
-%description libs -l pl
+%description libs -l pl.UTF-8
 Biblioteki dla gamina.
 
 %package devel
 Summary:	Includes to develop using gamin
-Summary(pl):	Pliki nag丑wkowe do tworzenia program體 z u縴ciem gamina
+Summary(pl.UTF-8):   Pliki nag艂贸wkowe do tworzenia program贸w z u偶yciem gamina
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	glib2-devel
@@ -54,12 +54,12 @@ Provides:	fam-devel = %{name}-devel
 %description devel
 Includes to develop using gamin.
 
-%description devel -l pl
-Pliki nag丑wkowe do tworzenia program體 z u縴ciem gamina.
+%description devel -l pl.UTF-8
+Pliki nag艂贸wkowe do tworzenia program贸w z u偶yciem gamina.
 
 %package static
 Summary:	gamin static libraries
-Summary(pl):	Statyczne biblioteki gamina
+Summary(pl.UTF-8):   Statyczne biblioteki gamina
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
 Provides:	fam-static = %{name}-static
@@ -67,12 +67,12 @@ Provides:	fam-static = %{name}-static
 %description static
 gamin static libraries.
 
-%description static -l pl
+%description static -l pl.UTF-8
 Statyczne biblioteki gamina.
 
 %package -n python-gamin
 Summary:	Python modules for gamin
-Summary(pl):	Modu硑 j陑yka Python dla gamina
+Summary(pl.UTF-8):   Modu艂y j臋zyka Python dla gamina
 Group:		Libraries/Python
 Requires:	%{name} = %{version}-%{release}
 %pyrequires_eq	python-libs
@@ -80,8 +80,8 @@ Requires:	%{name} = %{version}-%{release}
 %description -n python-gamin
 Python modules for gamin.
 
-%description -n python-gamin -l pl
-Modu硑 j陑yka Python dla gamina.
+%description -n python-gamin -l pl.UTF-8
+Modu艂y j臋zyka Python dla gamina.
 
 %prep
 %setup -q
