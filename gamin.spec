@@ -1,5 +1,5 @@
 Summary:	Library providing the gamin File Alteration Monitor API
-Summary(pl.UTF-8):   Biblioteka dostarczająca File Alteration Monitor API gamina
+Summary(pl.UTF-8):	Biblioteka dostarczająca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.8
 Release:	2
@@ -33,7 +33,7 @@ ogólnosystemowego demona.
 
 %package libs
 Summary:	Libraries for gamin
-Summary(pl.UTF-8):   Biblioteki dla gamina
+Summary(pl.UTF-8):	Biblioteki dla gamina
 Group:		Libraries
 Provides:	fam-libs = %{name}-libs
 
@@ -45,7 +45,7 @@ Biblioteki dla gamina.
 
 %package devel
 Summary:	Includes to develop using gamin
-Summary(pl.UTF-8):   Pliki nagłówkowe do tworzenia programów z użyciem gamina
+Summary(pl.UTF-8):	Pliki nagłówkowe do tworzenia programów z użyciem gamina
 Group:		Development/Libraries
 Requires:	%{name}-libs = %{version}-%{release}
 Requires:	glib2-devel
@@ -59,7 +59,7 @@ Pliki nagłówkowe do tworzenia programów z użyciem gamina.
 
 %package static
 Summary:	gamin static libraries
-Summary(pl.UTF-8):   Statyczne biblioteki gamina
+Summary(pl.UTF-8):	Statyczne biblioteki gamina
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
 Provides:	fam-static = %{name}-static
@@ -72,7 +72,7 @@ Statyczne biblioteki gamina.
 
 %package -n python-gamin
 Summary:	Python modules for gamin
-Summary(pl.UTF-8):   Moduły języka Python dla gamina
+Summary(pl.UTF-8):	Moduły języka Python dla gamina
 Group:		Libraries/Python
 Requires:	%{name} = %{version}-%{release}
 %pyrequires_eq	python-libs
