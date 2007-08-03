@@ -3,7 +3,7 @@ Summary(pl.UTF-8):	Biblioteka dostarczająca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.9
 Release:	1
-License:	LGPL
+License:	LGPL v2.1
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	2d3a6a70df090ed923238e381e6c2982
