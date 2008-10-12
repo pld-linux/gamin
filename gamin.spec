@@ -2,12 +2,13 @@ Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl.UTF-8):	Biblioteka dostarczająca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.9
-Release:	2
+Release:	3
 License:	LGPL v2.1
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	2d3a6a70df090ed923238e381e6c2982
 Patch0:		%{name}-inotify.patch
+Patch1:		%{name}-ucred-headers.patch
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
@@ -17,8 +18,8 @@ BuildRequires:	pkgconfig
 BuildRequires:	python
 BuildRequires:	python-devel
 Requires:	%{name}-libs = %{version}-%{release}
-Obsoletes:	gamin-inetd
 Provides:	fam = %{name}
+Obsoletes:	gamin-inetd
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
 %description
@@ -86,6 +87,7 @@ Moduły języka Python dla gamina.
 %prep
 %setup -q
 %patch0 -p1
+%patch1 -p1
 
 %build
 %{__libtoolize}
@@ -121,20 +123,27 @@ rm -rf $RPM_BUILD_ROOT
 
 %files libs
 %defattr(644,root,root,755)
-%attr(755,root,root) %{_libdir}/lib*.so.*.*
+%attr(755,root,root) %{_libdir}/libfam.so.*.*.*
+%attr(755,root,root) %ghost %{_libdir}/libfam.so.0
+%attr(755,root,root) %{_libdir}/libgamin-1.so.*.*.*
+%attr(755,root,root) %ghost %{_libdir}/libgamin-1.so.0
 
 %files devel
 %defattr(644,root,root,755)
-%attr(755,root,root) %{_libdir}/lib*.so
-%{_libdir}/lib*.la
-%{_includedir}/*.h
-%{_pkgconfigdir}/*.pc
+%attr(755,root,root) %{_libdir}/libfam.so
+%attr(755,root,root) %{_libdir}//libgamin-1.so
+%{_libdir}/libfam.la
+%{_libdir}/libgamin-1.la
+%{_includedir}/fam.h
+%{_pkgconfigdir}/gamin.pc
 
 %files static
 %defattr(644,root,root,755)
-%{_libdir}/lib*.a
+%{_libdir}/libfam.a
+%{_libdir}/libgamin-1.a
+%{_libdir}/libgamin_shared.a
 
 %files -n python-gamin
 %defattr(644,root,root,755)
-%attr(755,root,root) %{py_sitedir}/*.so
+%attr(755,root,root) %{py_sitedir}/_gamin.so
 %{py_sitedir}/*.py[co]
