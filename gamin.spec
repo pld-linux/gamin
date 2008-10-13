@@ -8,7 +8,6 @@ Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	2d3a6a70df090ed923238e381e6c2982
 Patch0:		%{name}-inotify.patch
-Patch1:		%{name}-ucred-headers.patch
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
@@ -87,7 +86,6 @@ Moduły języka Python dla gamina.
 %prep
 %setup -q
 %patch0 -p1
-%patch1 -p1
 
 %build
 %{__libtoolize}
@@ -97,7 +95,8 @@ Moduły języka Python dla gamina.
 %{__automake}
 %configure \
 	--%{?debug:en}%{!?debug:dis}able-debug
-%{__make}
+%{__make} \
+	CFLAGS="%{rpmcflags} -D_GNU_SOURCE"
 
 %install
 rm -rf $RPM_BUILD_ROOT
