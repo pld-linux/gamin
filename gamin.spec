@@ -2,7 +2,7 @@ Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl.UTF-8):	Biblioteka dostarczająca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.9
-Release:	4
+Release:	5
 License:	LGPL v2.1
 Group:		Networking/Daemons
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
@@ -16,8 +16,10 @@ BuildRequires:	libtool
 BuildRequires:	pkgconfig
 BuildRequires:	python
 BuildRequires:	python-devel
-Requires:	%{name}-libs = %{version}-%{release}
-Provides:	fam = %{name}
+Provides:	fam
+Provides:	fam-libs
+Obsoletes:	fam
+Obsoletes:	fam-libs
 Obsoletes:	gamin-inetd
 BuildRoot:	%{tmpdir}/%{name}-%{version}-root-%(id -u -n)
 
@@ -31,25 +33,26 @@ Ta biblioteka C dostarcza mechanizm monitorowania zmian plików
 kompatybilny na poziomie API i ABI z gaminem, ale niezależny od
 ogólnosystemowego demona.
 
-%package libs
-Summary:	Libraries for gamin
-Summary(pl.UTF-8):	Biblioteki dla gamina
+%package docs
+Summary:	Documentation for gamin
+Summary(pl.UTF-8):	Dokumentacja dla gamina
 Group:		Libraries
-Provides:	fam-libs = %{name}-libs
+Requires:	%{name} = %{version}-%{release}
 
-%description libs
-Libraries for gamin.
+%description docs
+Documentation for gamin.
 
-%description libs -l pl.UTF-8
-Biblioteki dla gamina.
+%description docs -l pl.UTF-8
+Dokumentacja dla gamina.
 
 %package devel
 Summary:	Includes to develop using gamin
 Summary(pl.UTF-8):	Pliki nagłówkowe do tworzenia programów z użyciem gamina
 Group:		Development/Libraries
-Requires:	%{name}-libs = %{version}-%{release}
+Requires:	%{name} = %{version}-%{release}
 Requires:	glib2-devel
-Provides:	fam-devel = %{name}-devel
+Provides:	fam-devel
+Obsoletes:	fam-devel
 
 %description devel
 Includes to develop using gamin.
@@ -62,7 +65,8 @@ Summary:	gamin static libraries
 Summary(pl.UTF-8):	Statyczne biblioteki gamina
 Group:		Development/Libraries
 Requires:	%{name}-devel = %{version}-%{release}
-Provides:	fam-static = %{name}-static
+Provides:	fam-static
+Obsoletes:	fam-static
 
 %description static
 gamin static libraries.
@@ -88,21 +92,21 @@ Moduły języka Python dla gamina.
 %patch0 -p1
 
 %build
-%{__libtoolize}
-%{__aclocal}
-%{__autoconf}
-%{__autoheader}
-%{__automake}
 %configure \
 	--%{?debug:en}%{!?debug:dis}able-debug
+
 %{__make} \
 	CFLAGS="%{rpmcflags} -D_GNU_SOURCE"
 
 %install
 rm -rf $RPM_BUILD_ROOT
+rm -rf html
+install -d html
 
 %{__make} install \
 	DESTDIR=$RPM_BUILD_ROOT
+
+cp -a doc/*.{html,gif} html
 
 %py_ocomp $RPM_BUILD_ROOT%{py_sitedir}
 %py_comp $RPM_BUILD_ROOT%{py_sitedir}
@@ -112,25 +116,25 @@ rm -f $RPM_BUILD_ROOT%{py_sitedir}/*.{py,la,a}
 %clean
 rm -rf $RPM_BUILD_ROOT
 
-%post	libs -p /sbin/ldconfig
-%postun	libs -p /sbin/ldconfig
+%post	-p /sbin/ldconfig
+%postun	-p /sbin/ldconfig
 
 %files
 %defattr(644,root,root,755)
-%doc AUTHORS ChangeLog README TODO
 %attr(755,root,root) %{_libdir}/gam_server
-
-%files libs
-%defattr(644,root,root,755)
 %attr(755,root,root) %{_libdir}/libfam.so.*.*.*
 %attr(755,root,root) %ghost %{_libdir}/libfam.so.0
 %attr(755,root,root) %{_libdir}/libgamin-1.so.*.*.*
 %attr(755,root,root) %ghost %{_libdir}/libgamin-1.so.0
 
+%files docs
+%defattr(644,root,root,755)
+%doc AUTHORS ChangeLog README TODO html doc/*.txt
+
 %files devel
 %defattr(644,root,root,755)
 %attr(755,root,root) %{_libdir}/libfam.so
-%attr(755,root,root) %{_libdir}//libgamin-1.so
+%attr(755,root,root) %{_libdir}/libgamin-1.so
 %{_libdir}/libfam.la
 %{_libdir}/libgamin-1.la
 %{_includedir}/fam.h
