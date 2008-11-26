@@ -1,6 +1,3 @@
-# TODO:
-#	- rm bogus gcc-c++ BR
-#
 Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl.UTF-8):	Biblioteka dostarczająca File Alteration Monitor API gamina
 Name:		gamin
@@ -14,7 +11,6 @@ Patch0:		%{name}-inotify.patch
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
-BuildRequires:	gcc-c++
 BuildRequires:	glib2-devel
 BuildRequires:	libtool
 BuildRequires:	pkgconfig
@@ -97,6 +93,11 @@ Moduły języka Python dla gamina.
 %patch0 -p1
 
 %build
+%{__libtoolize}
+%{__aclocal} 
+%{__autoconf}  
+%{__autoheader}
+%{__automake}
 %configure \
 	--%{?debug:en}%{!?debug:dis}able-debug
 
