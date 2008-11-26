@@ -18,8 +18,9 @@ BuildRequires:	gcc-c++
 BuildRequires:	glib2-devel
 BuildRequires:	libtool
 BuildRequires:	pkgconfig
-BuildRequires:	python
 BuildRequires:	python-devel
+BuildRequires:	python-modules
+BuildRequires:	rpm-pythonprov
 Provides:	fam
 Provides:	fam-libs
 Obsoletes:	fam
