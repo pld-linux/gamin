@@ -1,0 +1,7 @@
+- rel 5
+- merge libs to main package (it's all in libdir, so no multilib problems)
+- installed more docs and moved all of it to -docs package
+- obsolete fam (after 3 years I changed my mind),
+    rationale: fam does not support inotify, gamin does;
+               some programs rely on extended capabilities provided by gamin (Thunar)
+               loss of network support is no big deal, as gamin can monitor NFS mount client side
