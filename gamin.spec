@@ -4,7 +4,7 @@ Name:		gamin
 Version:	0.1.10
 Release:	2
 License:	LGPL v2.1
-Group:		Networking/Daemons
+Group:		Libraries
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	b4ec549e57da470c04edd5ec2876a028
 URL:		http://www.gnome.org/~veillard/gamin/
@@ -39,7 +39,7 @@ ogólnosystemowego demona.
 %package docs
 Summary:	Documentation for gamin
 Summary(pl.UTF-8):	Dokumentacja dla gamina
-Group:		Libraries
+Group:		Documentation
 Requires:	%{name} = %{version}-%{release}
 
 %description docs
