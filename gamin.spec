@@ -2,12 +2,13 @@ Summary:	Library providing the gamin File Alteration Monitor API
 Summary(pl.UTF-8):	Biblioteka dostarczająca File Alteration Monitor API gamina
 Name:		gamin
 Version:	0.1.10
-Release:	4
+Release:	5
 License:	LGPL v2.1
 Group:		Libraries
 Source0:	http://www.gnome.org/~veillard/gamin/sources/%{name}-%{version}.tar.gz
 # Source0-md5:	b4ec549e57da470c04edd5ec2876a028
 Patch0:		%{name}-glib.patch
+Patch1:		double-lock.patch
 URL:		http://www.gnome.org/~veillard/gamin/
 BuildRequires:	autoconf >= 2.52
 BuildRequires:	automake
@@ -94,6 +95,7 @@ Moduły języka Python dla gamina.
 %prep
 %setup -q
 %patch0 -p1
+%patch1 -p1
 
 %build
 %{__libtoolize}
