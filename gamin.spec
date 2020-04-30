@@ -132,7 +132,7 @@ rm -rf $RPM_BUILD_ROOT
 
 %files
 %defattr(644,root,root,755)
-%attr(755,root,root) %{_libdir}/gam_server
+%attr(755,root,root) %{_libexecdir}/gam_server
 %attr(755,root,root) %{_libdir}/libfam.so.*.*.*
 %attr(755,root,root) %ghost %{_libdir}/libfam.so.0
 %attr(755,root,root) %{_libdir}/libgamin-1.so.*.*.*
